@@ -1,0 +1,14 @@
+# Per-server project configurations and all secrets stay off Git.
+.DS_Store
+projects/*.conf
+!projects/project.template.conf
+secrets/
+*.env
+*.token
+
+# Never commit private SSH keys.
+*.pem
+*.key
+id_rsa
+id_ed25519
+github_*

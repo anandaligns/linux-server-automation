@@ -1,0 +1,24 @@
+# Copy this pattern into each website's production docker-compose.yml.
+# Choose a different SITE_PORT for every website.
+
+name: replace-with-a-unique-project-name
+
+services:
+  app:
+    # Existing app configuration remains here.
+    expose:
+      - "3000"
+
+  nginx:
+    # Host Nginx owns public ports 80 and 443.
+    # This container is reachable only from the same server.
+    ports:
+      - "127.0.0.1:${SITE_PORT:-8081}:80"
+    volumes:
+      - ./nginx/nginx.server.conf:/etc/nginx/conf.d/default.conf:ro
+    # Do not mount /etc/letsencrypt into this container.
+
+  postgres:
+    # Never publish 5432 in production.
+    expose:
+      - "5432"
