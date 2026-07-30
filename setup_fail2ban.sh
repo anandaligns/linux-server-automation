@@ -33,8 +33,15 @@ maxretry = 5
 # /var/log/nginx/docker-sites/DOMAIN/, so the shared /var/log/nginx/*.log files
 # only ever contain host-gateway noise. Both paths are listed: without the glob
 # these jails watch files no website writes to and never ban anything.
+#
+# backend must be set explicitly. Ubuntu's jail.conf uses "backend = auto",
+# which resolves to systemd on 24.04 (no rsyslog). Under the systemd backend
+# fail2ban reads the journal filtered by _SYSTEMD_UNIT=nginx.service and
+# ignores logpath completely, so these jails observe nothing at all: Nginx
+# writes to files, not the journal. "polling" reads the files as intended.
 [nginx-http-auth]
 enabled = true
+backend = polling
 port = http,https
 logpath = /var/log/nginx/error.log
           /var/log/nginx/docker-sites/*/error.log
@@ -42,6 +49,7 @@ maxretry = 5
 
 [nginx-botsearch]
 enabled = true
+backend = polling
 port = http,https
 logpath = /var/log/nginx/access.log
           /var/log/nginx/docker-sites/*/access.log
