@@ -29,16 +29,22 @@ mode = normal
 port = ssh
 maxretry = 5
 
+# add_docker_site.sh gives every website its own log directory under
+# /var/log/nginx/docker-sites/DOMAIN/, so the shared /var/log/nginx/*.log files
+# only ever contain host-gateway noise. Both paths are listed: without the glob
+# these jails watch files no website writes to and never ban anything.
 [nginx-http-auth]
 enabled = true
 port = http,https
 logpath = /var/log/nginx/error.log
+          /var/log/nginx/docker-sites/*/error.log
 maxretry = 5
 
 [nginx-botsearch]
 enabled = true
 port = http,https
 logpath = /var/log/nginx/access.log
+          /var/log/nginx/docker-sites/*/access.log
 maxretry = 8
 EOF
 
