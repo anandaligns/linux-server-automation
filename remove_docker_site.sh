@@ -21,6 +21,7 @@ fi
 
 SITE_CONFIG="/etc/nginx/sites-available/$DOMAIN.conf"
 SITE_LINK="/etc/nginx/sites-enabled/$DOMAIN.conf"
+SITE_METADATA="/etc/nginx/docker-sites/$DOMAIN.env"
 
 if [[ ! -e "$SITE_CONFIG" && ! -L "$SITE_LINK" ]]; then
     error "No managed Nginx site was found for $DOMAIN."
@@ -36,6 +37,15 @@ fi
 rm -f "$SITE_LINK"
 if [[ -e "$SITE_CONFIG" ]]; then
     mv "$SITE_CONFIG" "${SITE_CONFIG}.disabled.$(date +%Y%m%d_%H%M%S)"
+fi
+
+# deploy_project.sh reads these metadata files to detect loopback port collisions.
+# Leaving one behind keeps the retired domain's port reserved forever, so a new
+# website on that port is rejected with a conflict against a site that is gone.
+if [[ -e "$SITE_METADATA" ]]; then
+    released_port="$(awk -F= '$1 == "PORT" {print substr($0, index($0, "=") + 1); exit}' "$SITE_METADATA")"
+    rm -f "$SITE_METADATA"
+    info "Released loopback port ${released_port:-unknown} for reuse."
 fi
 
 nginx -t
