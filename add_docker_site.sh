@@ -138,6 +138,38 @@ if [[ "$ENABLE_SSL" == "yes" ]]; then
         --email "$EMAIL" \
         "${CERTBOT_DOMAINS[@]}"
     success "HTTPS enabled for $SERVER_NAMES"
+
+    # Certbot writes a plain "listen 443 ssl" block, so sites stay on HTTP/1.1
+    # and lose multiplexing. Enable HTTP/2 using whichever syntax this Nginx
+    # supports: the standalone directive from 1.25.1, the listen parameter
+    # before that.
+    nginx_version="$(nginx -v 2>&1 | sed -E 's#.*/([0-9]+\.[0-9]+).*#\1#')"
+    nginx_major="${nginx_version%%.*}"
+    nginx_minor="${nginx_version##*.}"
+
+    if (( nginx_major > 1 || (nginx_major == 1 && nginx_minor >= 25) )); then
+        # awk, not sed: a sed insert against these lines splits the directive
+        # mid-statement because Certbot appends ipv6only and a trailing comment.
+        if ! grep -qE '^[[:space:]]*http2[[:space:]]+on;' "$SITE_CONFIG"; then
+            http2_temp="$(mktemp)"
+            awk '!inserted && /listen[[:space:]]+.*443 ssl/ {
+                     print; print "    http2 on;"; inserted = 1; next
+                 } { print }' "$SITE_CONFIG" > "$http2_temp"
+            install -m 0644 "$http2_temp" "$SITE_CONFIG"
+            rm -f "$http2_temp"
+        fi
+    else
+        sed -i '/listen[[:space:]].*443 ssl/ { /http2/! s/ssl/ssl http2/ }' "$SITE_CONFIG"
+    fi
+
+    if nginx -t 2>/dev/null; then
+        systemctl reload nginx
+        success "HTTP/2 enabled for $SERVER_NAMES (nginx $nginx_version)"
+    else
+        warning "Enabling HTTP/2 produced an invalid configuration; reverting."
+        sed -i 's/ssl http2/ssl/; /^[[:space:]]*http2[[:space:]]\+on;$/d' "$SITE_CONFIG"
+        nginx -t && systemctl reload nginx
+    fi
 fi
 
 echo
